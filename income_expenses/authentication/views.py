@@ -1,4 +1,6 @@
 from django.shortcuts import render
+# import django
+# django.setup()
 from rest_framework import generics, status, views
 from .serializers import RegisterSerializer, EmailVerificationSerializer
 from rest_framework.response import Response
@@ -15,18 +17,14 @@ from drf_yasg import openapi
 # Create your views here.
 class RegisterView(generics.GenericAPIView):
     serializer_class = RegisterSerializer
-
     def post(self, request):
         user = request.data
         serializer = self.serializer_class(data=user)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         user_data = serializer.data
-
         user=User.objects.get(email=user_data['email'])
-
         token = RefreshToken.for_user(user).access_token
-
         current_site=get_current_site(request).domain
         relativeLink=reverse('email-verify')
         absurl='http://'+current_site+relativeLink+'?token='+ str(token)
@@ -46,12 +44,12 @@ class VerifyEmail(views.APIView):
     serializer_class = EmailVerificationSerializer
 
     token_param_config = openapi.Parameter('token', in_=openapi.IN_QUERY, description='Description',type=openapi.TYPE_STRING)
-    @swagger_auto_schema(manual_parameters=[token_param_config])
     
+    @swagger_auto_schema(manual_parameters=[token_param_config])
     def get(self,requset):
         token = requset.GET.get('token')
         try:
-            payload = jwt.decode(token,settings.SECRET_KEY)
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
             user = User.objects.get(id=payload['user_id'])
             if not user.is_verified:
                 user.is_verified = True
